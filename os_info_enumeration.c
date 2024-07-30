@@ -30,7 +30,10 @@ listRunningProcesses() {
 // ----------------------------------------------------------------
 // 		STEP 1: Enumerate all the running processes.
 
-    printf("\nHERE ARE ALL THE RUNNING PROCESSES:\n");
+    printf("\033[1;31m\nHERE ARE ALL THE RUNNING PROCESSES:\n\033[0m");
+    fflush(stdout);
+
+    //printf("\033[0m");
 
     // Enumerate all the running processes
     int r = system("ps -eLf");
@@ -42,7 +45,7 @@ listRunningThreads() {
 // --------------------------------------------------------------------------------
 // 		STEP 2: List all the running threads within process boundary.
 
-    printf("\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n");
+    printf("\033[1;31m\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n\033[0m");
 
     // List all the running threads within process boundary
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
@@ -82,7 +85,7 @@ listRunningThreads() {
                 {
                     if (threads_entry->d_type == DT_DIR && strcmp(threads_entry->d_name, ".") != 0 && strcmp(threads_entry->d_name, "..") != 0)
                     {
-                        printf("Thread ID: %s in Process ID: %d\n", threads_entry->d_name, pid);
+                        printf("\033[1;36mThread: %s\033[0m in Process ID: %d\n", threads_entry->d_name, pid);
                     }
                 }
 
@@ -102,7 +105,7 @@ listLoadedModules() {
 // ----------------------------------------------------------------------------------
 // 		STEP 3: Enumerate all the loaded modules within the processes.
 
-    printf("\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n");
+    printf("\033[1;31m\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
@@ -135,7 +138,7 @@ listLoadedModules() {
                     continue;
                 }
 
-                printf("\nLoaded modules for Process ID: %d\n", pid);
+                printf("\033[1;36m\nLoaded modules for Process ID: %d\n\033[0m", pid);
 
                 while(fgets(loadedModules, sizeof(loadedModules), file) != NULL)
                 {
@@ -156,7 +159,7 @@ void
 listExecutablePages() {
 // ---------------------------------------------------------------------------------------
 // 		STEP 4: Is able to show all the executable pages within the processes.
-    printf("\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n");
+    printf("\033[1;31m\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
     if (proc_fd == -1)
@@ -186,7 +189,7 @@ listExecutablePages() {
                 }
 
                 char executablePages[256];
-                printf("\nExecutable pages for Process ID: %d\n", pid);
+                printf("\033[1;36m\nExecutable pages for Process ID: %d\n\033[0m", pid);
 
                 while (fgets(executablePages, sizeof(executablePages), file) != NULL)
                 {
@@ -219,13 +222,15 @@ main(int argc, char *argv[])
     char input[10];
 
     while (1) {
-        printf("What would you like me to do?\n\n");
-        printf("1. Enumerate all the running processes\n");
-        printf("2. List all the running threads within process boundary.\n");
-        printf("3. Enumerate all the loaded modules within the processes.\n");
-        printf("4. Is able to show all the executable pages within the processes.\n");
-        printf("5. Gives us a capability to read the memory.\n\n");
-        printf("Enter your choice (1-5) or 'q' to quit: ");
+        printf("\033[1;33m\nWhat would you like me to do?\n\n");
+        printf("\t1. Enumerate all the running processes\n");
+        printf("\t2. List all the running threads within process boundary.\n");
+        printf("\t3. Enumerate all the loaded modules within the processes.\n");
+        printf("\t4. Is able to show all the executable pages within the processes.\n");
+        printf("\t5. Gives us a capability to read the memory.\n\n");
+        printf("Enter your choice (1-5) or 'q' to quit: \033[0m");
+
+        fflush(stdout);
         scanf("%s", input);
 
         if (strcmp(input, "q") == 0 || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
