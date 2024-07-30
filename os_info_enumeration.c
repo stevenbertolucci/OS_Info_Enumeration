@@ -5,7 +5,7 @@
 // 	Assignment: Homework 2 - OS Information Enumeration
 // 	Description:
 //
-// 	I written a C program that does 5 things on a Linux
+// 	I have written a C program that does 5 things on a Linux
 // 	machine:
 //
 // 	1. Enumerate all the running processes.
@@ -42,7 +42,7 @@ main(int argc, char *argv[])
 // --------------------------------------------------------------------------------
 // 		STEP 2: List all the running threads within process boundary.
 
-	printf("\n\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n");
+	printf("\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n");
 
 	// List all the running threads within process boundary	
 	DIR *proc_dir = opendir("/proc");
@@ -85,7 +85,7 @@ main(int argc, char *argv[])
 // ----------------------------------------------------------------------------------
 // 		STEP 3: Enumerate all the loaded modules within the processes.
 
-	printf("\n\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n");
+	printf("\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n");
 
 	proc_dir = opendir("/proc");
 
@@ -135,7 +135,50 @@ main(int argc, char *argv[])
 
 // ---------------------------------------------------------------------------------------
 // 		STEP 4: Is able to show all the executable pages within the proccesses.
+    printf("\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n");
 
+    proc_dir = opendir("/proc");
+
+    if (proc_dir == NULL)
+    {
+        perror("Error opening directory /proc");
+        return 1;
+    }
+
+    while ((proc_entry = readdir(proc_dir)) != NULL)
+    {
+        if (proc_entry->d_type == DT_DIR)
+        {
+            pid_t pid = atoi(proc_entry->d_name);
+            if (pid > 0)
+            {
+                char executable[256];
+                snprintf(executable, sizeof(executable), "/proc/%d/maps", pid);
+
+                FILE *file = fopen(executable, "r");
+                if (file == NULL)
+                {
+                    perror("fopen");
+                    continue;
+                }
+
+                char executablePages[256];
+                printf("\nExecutable pages for Process ID: %d\n", pid);
+
+                while (fgets(executablePages, sizeof(executablePages), file) != NULL)
+                {
+                    if (strstr(executablePages, "x") != NULL)
+                    {  // Check if the memory region is executable
+                        printf("%s", executablePages);
+                    }
+                }
+
+                fclose(file);
+            }
+        }
+    }
+
+    closedir(proc_dir);
 
 
 
