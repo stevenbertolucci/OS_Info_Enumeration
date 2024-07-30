@@ -23,127 +23,150 @@
 #include <dirent.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
-// main.c 
-int
-main(int argc, char *argv[]) 
-{
-
+void
+listRunningProcesses() {
 // ----------------------------------------------------------------
 // 		STEP 1: Enumerate all the running processes.
 
-	printf("\nHERE ARE ALL THE RUNNING PROCESSES:\n");
+    printf("\nHERE ARE ALL THE RUNNING PROCESSES:\n");
 
-	// Enumerate all the running processes
-	int r = system("ps -eLf");
+    // Enumerate all the running processes
+    int r = system("ps -eLf");
 // ----------------------------------------------------------------
+}
 
-
+void
+listRunningThreads() {
 // --------------------------------------------------------------------------------
 // 		STEP 2: List all the running threads within process boundary.
 
-	printf("\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n");
+    printf("\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n");
 
-	// List all the running threads within process boundary	
-	DIR *proc_dir = opendir("/proc");
+    // List all the running threads within process boundary
+    int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
-	struct dirent *proc_entry;
+    if (proc_fd == -1)
+    {
+        perror("Error opening directory: /proc");
+        return;
+    }
 
-	while ((proc_entry = readdir(proc_dir)) != NULL) 
-	{
-        	if (proc_entry->d_type == DT_DIR) 
-		{
-            		pid_t pid = atoi(proc_entry->d_name);
+    DIR *proc_dir = fdopendir(proc_fd);
+    struct dirent *proc_entry;
 
-            		if (pid > 0) 
-			{
-                		char threads[256];
-				snprintf(threads, sizeof(threads), "/proc/%d/task", pid);
+    while ((proc_entry = readdir(proc_dir)) != NULL)
+    {
+        if (proc_entry->d_type == DT_DIR)
+        {
+            pid_t pid = atoi(proc_entry->d_name);
 
-				DIR *threads_dir = opendir(threads);
-	
-				struct dirent *threads_entry;
+            if (pid > 0)
+            {
+                char threads[256];
+                snprintf(threads, sizeof(threads), "/proc/%d/task", pid);
 
-				while ((threads_entry = readdir(threads_dir)) != NULL)
-				{
-					if (threads_entry->d_type == DT_DIR && strcmp(threads_entry->d_name, ".") != 0 && strcmp(threads_entry->d_name, "..") != 0)
-					{
-						printf("Thread ID: %s in Process ID: %d\n", threads_entry->d_name, pid);
-					}		
-				}
+                int threads_fd = open(threads, O_RDONLY | O_DIRECTORY);
 
-				closedir(threads_dir);
+                if (threads_fd == -1)
+                {
+                    perror("Error opening threads directory");
+                    continue;
+                }
 
-            		}
-        	}
-    	}
+                DIR *threads_dir = fdopendir(threads_fd);
+                struct dirent *threads_entry;
 
-    	closedir(proc_dir);
+                while ((threads_entry = readdir(threads_dir)) != NULL)
+                {
+                    if (threads_entry->d_type == DT_DIR && strcmp(threads_entry->d_name, ".") != 0 && strcmp(threads_entry->d_name, "..") != 0)
+                    {
+                        printf("Thread ID: %s in Process ID: %d\n", threads_entry->d_name, pid);
+                    }
+                }
+
+                closedir(threads_dir);
+                close(threads_fd);
+            }
+        }
+    }
+
+    closedir(proc_dir);
+    close(proc_fd);
 // ----------------------------------------------------------------------------------
+}
 
-
+void
+listLoadedModules() {
 // ----------------------------------------------------------------------------------
 // 		STEP 3: Enumerate all the loaded modules within the processes.
 
-	printf("\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n");
+    printf("\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n");
 
-	proc_dir = opendir("/proc");
+    int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
-	if (proc_dir == NULL)
-	{
-		perror("Issue opening /proc directory");
-		return 1;
-	}
+    if (proc_fd == -1)
+    {
+        perror("Issue opening /proc directory");
+        return;
+    }
 
-	while((proc_entry = readdir(proc_dir)) != NULL)
-	{
-		if (proc_entry->d_type == DT_DIR)
-		{
-			pid_t pid = atoi(proc_entry->d_name);
+    DIR *proc_dir = fdopendir(proc_fd);
+    struct dirent *proc_entry;
 
-			if (pid > 0)
-			{
-				char modules[256];
-				char loadedModules[256];
+    while((proc_entry = readdir(proc_dir)) != NULL)
+    {
+        if (proc_entry->d_type == DT_DIR)
+        {
+            pid_t pid = atoi(proc_entry->d_name);
 
-				snprintf(modules, sizeof(modules), "/proc/%d/maps", pid);
+            if (pid > 0)
+            {
+                char modules[256];
+                char loadedModules[256];
 
-				FILE *file = fopen(modules, "r");
-				if (file == NULL)
-				{
-					perror("fopen");
-					continue;
-				}
+                snprintf(modules, sizeof(modules), "/proc/%d/maps", pid);
 
-				printf("\nLoaded modules for Process ID: %d\n", pid);
+                FILE *file = fopen(modules, "r");
+                if (file == NULL)
+                {
+                    perror("fopen");
+                    continue;
+                }
 
-				while(fgets(loadedModules, sizeof(loadedModules), file) != NULL)
-				{
-                        		printf("%s", loadedModules);
-                		}
+                printf("\nLoaded modules for Process ID: %d\n", pid);
 
-				fclose(file);
-			}
-		}
-	}
+                while(fgets(loadedModules, sizeof(loadedModules), file) != NULL)
+                {
+                    printf("%s", loadedModules);
+                }
 
-	closedir(proc_dir);
+                fclose(file);
+            }
+        }
+    }
 
-
+    closedir(proc_dir);
+    close(proc_fd);
 // ----------------------------------------------------------------------------------
+}
 
-
+void
+listExecutablePages() {
 // ---------------------------------------------------------------------------------------
-// 		STEP 4: Is able to show all the executable pages within the proccesses.
+// 		STEP 4: Is able to show all the executable pages within the processes.
     printf("\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n");
 
-    proc_dir = opendir("/proc");
-
-    if (proc_dir == NULL)
+    int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
+    if (proc_fd == -1)
     {
         perror("Error opening directory /proc");
-        return 1;
+        return;
     }
+
+    DIR *proc_dir = fdopendir(proc_fd);
+    struct dirent *proc_entry;
 
     while ((proc_entry = readdir(proc_dir)) != NULL)
     {
@@ -179,18 +202,65 @@ main(int argc, char *argv[])
     }
 
     closedir(proc_dir);
-
-
-
+    close(proc_fd);
 // ---------------------------------------------------------------------------------------
+}
 
+void
+displayTheMemory() {
 
-// ------------------------------------------------------------------
-// 		STEP 5: Gives us a capability to read the memory.
+}
 
+// main.c
+int
+main(int argc, char *argv[])
+{
+    int userInput;
+    char input[10];
 
+    while (1) {
+        printf("What would you like me to do?\n\n");
+        printf("1. Enumerate all the running processes\n");
+        printf("2. List all the running threads within process boundary.\n");
+        printf("3. Enumerate all the loaded modules within the processes.\n");
+        printf("4. Is able to show all the executable pages within the processes.\n");
+        printf("5. Gives us a capability to read the memory.\n\n");
+        printf("Enter your choice (1-5) or 'q' to quit: ");
+        scanf("%s", input);
 
+        if (strcmp(input, "q") == 0 || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
+            break;
+        }
 
-// ------------------------------------------------------------------
-	return 0;
+        // Switch the input to decimal
+        userInput = atoi(input);
+
+        switch (userInput) {
+            case 1:
+                listRunningProcesses();
+                break;
+
+            case 2:
+                listRunningThreads();
+                break;
+
+            case 3:
+                listLoadedModules();
+                break;
+
+            case 4:
+                listExecutablePages();
+                break;
+
+            case 5:
+                displayTheMemory();
+                break;
+
+            default:
+                printf("Invalid input. Please enter a number between 1 and 5.\n");
+                break;
+        }
+    }
+
+    return 0;
 }
