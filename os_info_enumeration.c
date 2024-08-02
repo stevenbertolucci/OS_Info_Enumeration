@@ -161,59 +161,31 @@ listRunningThreads() {
 void
 listLoadedModules() {
 
-    printf("\033[1;31m\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n\033[0m");
+    printf("\033[1;31m\nHERE ARE ALL THE LOADED MODULES:\n\033[0m");
 
-    int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
-
-    if (proc_fd == -1)
+    FILE *file = fopen("/proc/modules", "r");
+    if (file == NULL)
     {
-        perror("Issue opening /proc directory");
+        perror("Issues opening /proc/modules file using fopen");
         return;
     }
 
-    DIR *dirp = fdopendir(proc_fd);
-    struct dirent *dirp_entry;
+    char moduleInfo[256];
 
-    while((dirp_entry = readdir(dirp)) != NULL)
+    printf("\033[1;36m%-20s %-10s %-10s\n\033[0m", "Module", "Size", "Used by");
+
+    while (fgets(moduleInfo, sizeof(moduleInfo), file) != NULL)
     {
-        if (dirp_entry->d_type == DT_DIR)
-        {
-            pid_t pid = atoi(dirp_entry->d_name);
+        char moduleName[50];
+        unsigned long moduleSize;
+        int moduleUsage;
+        char moduleDetails[128];
 
-            if (pid > 0)
-            {
-                char modules[256];
-                char loadedModules[256];
-
-                snprintf(modules, sizeof(modules), "/proc/%d/maps", pid);
-
-                FILE *file = fopen(modules, "r");
-                if (file == NULL)
-                {
-                    perror("Issues opening loaded modules file using fopen");
-                    continue;
-                }
-
-                printf("\033[1;36m\nLoaded modules for Process ID: %d\n\033[0m", pid);
-
-                while(fgets(loadedModules, sizeof(loadedModules), file) != NULL)
-                {
-                    char *loadedModulesPath = strchr(loadedModules, '/');
-
-                    if (loadedModulesPath != NULL)
-                    {
-                        printf("%s", loadedModulesPath);
-                    }
-                    //printf("%s", loadedModules);
-                }
-
-                fclose(file);
-            }
-        }
+        sscanf(moduleInfo, "%49s %lu %d %127s", moduleName, &moduleSize, &moduleUsage, moduleDetails);
+        printf("%-20s %-10lu %-10d %s\n", moduleName, moduleSize, moduleUsage, moduleDetails);
     }
 
-    closedir(dirp);
-    close(proc_fd);
+    fclose(file);
 }
 
 // ---------------------------------------------------------------------------------------
