@@ -24,26 +24,83 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <ctype.h>
 
+// ----------------------------------------------------------------
+// 		       STEP 1: Enumerate all the running processes.
+// ----------------------------------------------------------------
 void
 listRunningProcesses() {
-// ----------------------------------------------------------------
-// 		STEP 1: Enumerate all the running processes.
 
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING PROCESSES:\n\033[0m");
     fflush(stdout);
 
-    //printf("\033[0m");
-
     // Enumerate all the running processes
-    int r = system("ps -eLf");
-// ----------------------------------------------------------------
+    //int r = system("ps -eLf"); <--- Wrong. Oops
+
+    // Opening the /proc directory
+    DIR *dirp = opendir("/proc");
+
+    // Check to see if the /proc is able to be opened
+    if (dirp == NULL)
+    {
+        perror("Error opening /proc directory");
+        return;
+    }
+
+    struct dirent *dirp_entry;
+
+    while ((dirp_entry = readdir(dirp)) != NULL)
+    {
+        // Check if the entry is a directory and the name is all digits (indicating a process ID)
+        if (dirp_entry->d_type == DT_DIR)
+        {
+            int is_pid = 1;
+            for (char *p = dirp_entry->d_name; *p != '\0'; p++)
+            {
+                if (!isdigit(*p))
+                {
+                    is_pid = 0;
+                    break;
+                }
+            }
+
+            if (is_pid)
+            {
+                pid_t pid = atoi(dirp_entry->d_name);
+
+                // Construct the path to the comm file which contains the command name
+                char comm_path[256];
+                snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
+
+                FILE *comm_file = fopen(comm_path, "r");
+                if (comm_file == NULL)
+                {
+                    continue;
+                }
+
+                char comm[256];
+                if (fgets(comm, sizeof(comm), comm_file) != NULL)
+                {
+                    // Remove the newline character at the end of the command name
+                    comm[strcspn(comm, "\n")] = '\0';
+                    printf("Process ID: %d, Command: %s\n", pid, comm);
+                }
+
+                fclose(comm_file);
+            }
+        }
+    }
+
+    closedir(dirp);
 }
 
+// --------------------------------------------------------------------------------
+// 		    STEP 2: List all the running threads within process boundary.
+// --------------------------------------------------------------------------------
 void
 listRunningThreads() {
-// --------------------------------------------------------------------------------
-// 		STEP 2: List all the running threads within process boundary.
 
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n\033[0m");
 
@@ -56,14 +113,14 @@ listRunningThreads() {
         return;
     }
 
-    DIR *proc_dir = fdopendir(proc_fd);
-    struct dirent *proc_entry;
+    DIR *dirp = fdopendir(proc_fd);
+    struct dirent *dirp_entry;
 
-    while ((proc_entry = readdir(proc_dir)) != NULL)
+    while ((dirp_entry = readdir(dirp)) != NULL)
     {
-        if (proc_entry->d_type == DT_DIR)
+        if (dirp_entry->d_type == DT_DIR)
         {
-            pid_t pid = atoi(proc_entry->d_name);
+            pid_t pid = atoi(dirp_entry->d_name);
 
             if (pid > 0)
             {
@@ -95,15 +152,15 @@ listRunningThreads() {
         }
     }
 
-    closedir(proc_dir);
+    closedir(dirp);
     close(proc_fd);
-// ----------------------------------------------------------------------------------
 }
 
+// ----------------------------------------------------------------------------------
+// 		    STEP 3: Enumerate all the loaded modules within the processes.
+// ----------------------------------------------------------------------------------
 void
 listLoadedModules() {
-// ----------------------------------------------------------------------------------
-// 		STEP 3: Enumerate all the loaded modules within the processes.
 
     printf("\033[1;31m\nHERE ARE ALL THE LOADED MODULES WITHIN THE PROCESSES:\n\033[0m");
 
@@ -115,14 +172,14 @@ listLoadedModules() {
         return;
     }
 
-    DIR *proc_dir = fdopendir(proc_fd);
-    struct dirent *proc_entry;
+    DIR *dirp = fdopendir(proc_fd);
+    struct dirent *dirp_entry;
 
-    while((proc_entry = readdir(proc_dir)) != NULL)
+    while((dirp_entry = readdir(dirp)) != NULL)
     {
-        if (proc_entry->d_type == DT_DIR)
+        if (dirp_entry->d_type == DT_DIR)
         {
-            pid_t pid = atoi(proc_entry->d_name);
+            pid_t pid = atoi(dirp_entry->d_name);
 
             if (pid > 0)
             {
@@ -134,7 +191,7 @@ listLoadedModules() {
                 FILE *file = fopen(modules, "r");
                 if (file == NULL)
                 {
-                    perror("fopen");
+                    perror("Issues opening loaded modules file using fopen");
                     continue;
                 }
 
@@ -142,7 +199,13 @@ listLoadedModules() {
 
                 while(fgets(loadedModules, sizeof(loadedModules), file) != NULL)
                 {
-                    printf("%s", loadedModules);
+                    char *loadedModulesPath = strchr(loadedModules, '/');
+
+                    if (loadedModulesPath != NULL)
+                    {
+                        printf("%s", loadedModulesPath);
+                    }
+                    //printf("%s", loadedModules);
                 }
 
                 fclose(file);
@@ -150,15 +213,16 @@ listLoadedModules() {
         }
     }
 
-    closedir(proc_dir);
+    closedir(dirp);
     close(proc_fd);
-// ----------------------------------------------------------------------------------
 }
 
+// ---------------------------------------------------------------------------------------
+// 		    STEP 4: Is able to show all the executable pages within the processes.
+// ---------------------------------------------------------------------------------------
 void
 listExecutablePages() {
-// ---------------------------------------------------------------------------------------
-// 		STEP 4: Is able to show all the executable pages within the processes.
+
     printf("\033[1;31m\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
@@ -168,14 +232,14 @@ listExecutablePages() {
         return;
     }
 
-    DIR *proc_dir = fdopendir(proc_fd);
-    struct dirent *proc_entry;
+    DIR *dirp = fdopendir(proc_fd);
+    struct dirent *dirp_entry;
 
-    while ((proc_entry = readdir(proc_dir)) != NULL)
+    while ((dirp_entry = readdir(dirp)) != NULL)
     {
-        if (proc_entry->d_type == DT_DIR)
+        if (dirp_entry->d_type == DT_DIR)
         {
-            pid_t pid = atoi(proc_entry->d_name);
+            pid_t pid = atoi(dirp_entry->d_name);
             if (pid > 0)
             {
                 char executable[256];
@@ -184,7 +248,7 @@ listExecutablePages() {
                 FILE *file = fopen(executable, "r");
                 if (file == NULL)
                 {
-                    perror("fopen");
+                    perror("Issues opening executable files using fopen");
                     continue;
                 }
 
@@ -194,8 +258,15 @@ listExecutablePages() {
                 while (fgets(executablePages, sizeof(executablePages), file) != NULL)
                 {
                     if (strstr(executablePages, "x") != NULL)
-                    {  // Check if the memory region is executable
-                        printf("%s", executablePages);
+                    {
+                        char *executablePagesPath = strchr(executablePages, '/');
+
+                        if (executablePagesPath != NULL)
+                        {
+                            printf("%s", executablePagesPath);
+                        }
+
+                        //printf("%s", executablePages);
                     }
                 }
 
@@ -204,20 +275,139 @@ listExecutablePages() {
         }
     }
 
-    closedir(proc_dir);
+    closedir(dirp);
     close(proc_fd);
-// ---------------------------------------------------------------------------------------
 }
 
+// ---------------------------------------------------------------------------------------
+// 		            STEP 5: Gives us a capability to read the memory.
+// ---------------------------------------------------------------------------------------
 void
 displayTheMemory() {
 
+    printf("\033[1;31m\nHERE IS THE MEMORY OF EACH PROCESS:\n\033[0m");
+
+    int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
+
+    if (proc_fd == -1)
+    {
+        perror("Error opening directory /proc");
+        return;
+    }
+
+    DIR *dirp = fdopendir(proc_fd);
+    struct dirent *dirp_entry;
+
+    while ((dirp_entry = readdir(dirp)) != NULL)
+    {
+        if (dirp_entry->d_type == DT_DIR)
+        {
+            pid_t pid = atoi(dirp_entry->d_name);
+            if (pid > 0)
+            {
+                unsigned long start_offset = 0x0;
+                size_t size = 1024;
+
+                char memory[256];
+                snprintf(memory, sizeof(memory), "/proc/%d/mem", pid);
+                int mem_fd = open(memory, O_RDONLY);
+
+                if (mem_fd == -1)
+                {
+                    if (errno == EACCES)
+                    {
+                        printf("Permission denied to read memory of process %d.\n", pid);
+                    } else {
+                        perror("Error opening memory file");
+                    }
+                    continue;
+                }
+
+                if (lseek(mem_fd, start_offset, SEEK_SET) == (off_t) -1)
+                {
+                    perror("Error seeking in memory file");
+                    close(mem_fd);
+                    continue;
+                }
+
+                char *buffer = malloc(size);
+                if (buffer == NULL)
+                {
+                    perror("Error allocating memory");
+                    close(mem_fd);
+                    continue;
+                }
+
+                ssize_t bytesRead = read(mem_fd, buffer, size);
+                if (bytesRead == -1)
+                {
+                    if (errno == EIO)
+                    {
+                        printf("I/O error reading memory of process %d. Skipping this region.\n", pid);
+                    } else {
+                        perror("Error reading memory file");
+                    }
+
+                    close(mem_fd);
+                    free(buffer);
+                    continue;
+                }
+
+                printf("Memory at offset 0x%lx in process %d:\n", start_offset, pid);
+                for (size_t i = 0; i < bytesRead; i++)
+                {
+                    printf("%02x ", (unsigned char)buffer[i]);
+                    if ((i + 1) % 16 == 0)
+                    {
+                        printf("\n");
+                    }
+                }
+                printf("\n");
+
+                close(mem_fd);
+                free(buffer);
+            }
+        }
+    }
+
+    closedir(dirp);
+    close(proc_fd);
 }
 
-// main.c
+// ---------------------------------------------------------------------------------------
+//                  Checking to see if user has sudo privileges
+// ---------------------------------------------------------------------------------------
+void
+check_sudo(int argc, char *argv[])
+{
+    if (geteuid() != 0)
+    {
+        // Not running as root, re-execute with sudo
+        printf("This program needs to run with sudo. Please enter your password.\n");
+        char *new_argv[argc + 2];
+        new_argv[0] = "sudo";
+
+        for (int i = 0; i < argc; i++)
+        {
+            new_argv[i + 1] = argv[i];
+        }
+
+        new_argv[argc + 1] = NULL;
+        execvp("sudo", new_argv);
+        perror("execvp");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// ----------------------------------------------------------------
+//                          main.c
+// ----------------------------------------------------------------
 int
 main(int argc, char *argv[])
 {
+    // Step 5 requires sudo privileges
+    check_sudo(argc, argv);
+
     int userInput;
     char input[10];
 
@@ -266,6 +456,9 @@ main(int argc, char *argv[])
                 break;
         }
     }
-
     return 0;
 }
+
+// ----------------------------------------------------------------
+//                         End of Program
+// ----------------------------------------------------------------
