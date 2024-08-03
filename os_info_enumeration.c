@@ -27,6 +27,8 @@
 #include <errno.h>
 #include <ctype.h>
 
+#define MEMORY_READ_LIMIT 1024
+
 // ----------------------------------------------------------------
 // 		       STEP 1: Enumerate all the running processes.
 // ----------------------------------------------------------------
@@ -35,9 +37,6 @@ listRunningProcesses() {
 
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING PROCESSES:\n\033[0m");
     fflush(stdout);
-
-    // Enumerate all the running processes
-    //int r = system("ps -eLf"); <--- Wrong. Oops
 
     // Opening the /proc directory
     DIR *dirp = opendir("/proc");
@@ -285,92 +284,57 @@ listExecutablePages() {
 void
 displayTheMemory() {
 
-    printf("\033[1;31m\nHERE IS THE MEMORY OF EACH PROCESS:\n\033[0m");
+    printf("\033[1;31m\nMEMORY RANGES FOR EACH PROCESS:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
-
     if (proc_fd == -1)
     {
         perror("Error opening directory /proc");
         return;
     }
 
-    DIR *dirp = fdopendir(proc_fd);
+    DIR *proc_dir = fdopendir(proc_fd);
+    if (proc_dir == NULL)
+    {
+        perror("Error opening /proc directory with fdopendir");
+        close(proc_fd);
+        return;
+    }
+
     struct dirent *dirp_entry;
 
-    while ((dirp_entry = readdir(dirp)) != NULL)
+    while ((dirp_entry = readdir(proc_dir)) != NULL)
     {
-        if (dirp_entry->d_type == DT_DIR)
+        if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0)
         {
             pid_t pid = atoi(dirp_entry->d_name);
-            if (pid > 0)
+            char maps_path[256];
+            snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+            FILE *maps_file = fopen(maps_path, "r");
+
+            if (maps_file == NULL)
             {
-                unsigned long start_offset = 0x0;
-                size_t size = 1024;
-
-                char memory[256];
-                snprintf(memory, sizeof(memory), "/proc/%d/mem", pid);
-                int mem_fd = open(memory, O_RDONLY);
-
-                if (mem_fd == -1)
-                {
-                    if (errno == EACCES)
-                    {
-                        printf("Permission denied to read memory of process %d.\n", pid);
-                    } else {
-                        perror("Error opening memory file");
-                    }
-                    continue;
-                }
-
-                if (lseek(mem_fd, start_offset, SEEK_SET) == (off_t) -1)
-                {
-                    perror("Error seeking in memory file");
-                    close(mem_fd);
-                    continue;
-                }
-
-                char *buffer = malloc(size);
-                if (buffer == NULL)
-                {
-                    perror("Error allocating memory");
-                    close(mem_fd);
-                    continue;
-                }
-
-                ssize_t bytesRead = read(mem_fd, buffer, size);
-                if (bytesRead == -1)
-                {
-                    if (errno == EIO)
-                    {
-                        printf("I/O error reading memory of process %d. Skipping this region.\n", pid);
-                    } else {
-                        perror("Error reading memory file");
-                    }
-
-                    close(mem_fd);
-                    free(buffer);
-                    continue;
-                }
-
-                printf("Memory at offset 0x%lx in process %d:\n", start_offset, pid);
-                for (size_t i = 0; i < bytesRead; i++)
-                {
-                    printf("%02x ", (unsigned char)buffer[i]);
-                    if ((i + 1) % 16 == 0)
-                    {
-                        printf("\n");
-                    }
-                }
-                printf("\n");
-
-                close(mem_fd);
-                free(buffer);
+                perror("Error opening maps file");
+                continue;
             }
+
+            char line[256];
+            printf("Process %d:\n", pid);
+            while (fgets(line, sizeof(line), maps_file))
+            {
+                unsigned long start, end;
+                if (sscanf(line, "%lx-%lx", &start, &end) == 2)
+                {
+                    printf("0x%lx-0x%lx\n", start, end);
+                }
+            }
+            printf("\n");
+
+            fclose(maps_file);
         }
     }
 
-    closedir(dirp);
+    closedir(proc_dir);
     close(proc_fd);
 }
 
