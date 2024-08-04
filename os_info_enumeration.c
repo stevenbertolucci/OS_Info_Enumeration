@@ -93,6 +93,7 @@ void listRunningProcesses()
             // Directory name is a string. Need to change it to int so that I can access it and display it
             pid_t pid = atoi(dirp_entry->d_name);
 
+            // PID folders
             if (pid > 0)
             {
                 // Comm file path will contain the running process
