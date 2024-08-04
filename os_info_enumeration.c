@@ -132,6 +132,7 @@ void listRunningProcesses()
 
     // Close the directory
     closedir(dirp);
+    close(fd);
 }
 
 // --------------------------------------------------------------------------------
