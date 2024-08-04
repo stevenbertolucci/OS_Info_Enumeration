@@ -17,14 +17,24 @@
 //
 // ----------------------------------------------------------------
 
-// Libraries needed for this program
+// ----------------------------------------------------------------------------
+//    Citations:
+//    I researched on how to navigate through directories in a Linux system
+//    and I found a couple man pages that uses dirent.h. Dirent.h describes an entry
+//    in a directory such as d_name.
+//
+//    Source: https://man7.org/linux/man-pages/man0/dirent.h.0p.html
+//  https://www.gnu.org/software/libc/manual/html_node/Directory-Entries.html
+//
+//    I used this approach for all 5 tasks below.
+// ----------------------------------------------------------------------------
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <ctype.h>
 
 #define MEMORY_READ_LIMIT 1024
@@ -35,13 +45,16 @@
 void
 listRunningProcesses() {
 
+    // Display message
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING PROCESSES:\n\033[0m");
+
+    // For resetting the stdout color profile
     fflush(stdout);
 
-    // Opening the /proc directory
+    // Open the /proc directory
     DIR *dirp = opendir("/proc");
 
-    // Check to see if the /proc is able to be opened
+    // Check for error opening directory
     if (dirp == NULL)
     {
         perror("Error opening /proc directory");
@@ -50,12 +63,17 @@ listRunningProcesses() {
 
     struct dirent *dirp_entry;
 
+    // Iterate through every PID directory in /proc
     while ((dirp_entry = readdir(dirp)) != NULL)
     {
         // Check if the entry is a directory and the name is all digits (indicating a process ID)
         if (dirp_entry->d_type == DT_DIR)
         {
+
+            // Set the flag to true
             int is_pid = 1;
+
+            // Check to see if the directory is a PID process
             for (char *p = dirp_entry->d_name; *p != '\0'; p++)
             {
                 if (!isdigit(*p))
@@ -65,33 +83,40 @@ listRunningProcesses() {
                 }
             }
 
+            // If it is a PID process, save the PID and then display the running process
             if (is_pid)
             {
+                // Directory name is a string. Need to change it to int so that I can access it and display it
                 pid_t pid = atoi(dirp_entry->d_name);
 
-                // Construct the path to the comm file which contains the command name
+                // Comm file will contain the running process
                 char comm_path[256];
                 snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
 
+                // Open the comm file for reading
                 FILE *comm_file = fopen(comm_path, "r");
+
+                // Check for errors
                 if (comm_file == NULL)
                 {
                     continue;
                 }
 
+                // Get the running process from the file and display it
                 char comm[256];
                 if (fgets(comm, sizeof(comm), comm_file) != NULL)
                 {
-                    // Remove the newline character at the end of the command name
                     comm[strcspn(comm, "\n")] = '\0';
                     printf("Process ID: %d, Command: %s\n", pid, comm);
                 }
 
+                // Close the file
                 fclose(comm_file);
             }
         }
     }
 
+    // Close the directory
     closedir(dirp);
 }
 
@@ -103,9 +128,10 @@ listRunningThreads() {
 
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n\033[0m");
 
-    // List all the running threads within process boundary
+    // Open the directory
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
+    // Check for errors
     if (proc_fd == -1)
     {
         perror("Error opening directory: /proc");
@@ -115,19 +141,25 @@ listRunningThreads() {
     DIR *dirp = fdopendir(proc_fd);
     struct dirent *dirp_entry;
 
+    // Iterate through the directory
     while ((dirp_entry = readdir(dirp)) != NULL)
     {
+        // If it is a directory inside a directory
         if (dirp_entry->d_type == DT_DIR)
         {
+            // Convert name of directory to int
             pid_t pid = atoi(dirp_entry->d_name);
 
+            // Iterate through valid PID directories
             if (pid > 0)
             {
                 char threads[256];
                 snprintf(threads, sizeof(threads), "/proc/%d/task", pid);
 
+                // Open the directory
                 int threads_fd = open(threads, O_RDONLY | O_DIRECTORY);
 
+                // Error checking when opening directories
                 if (threads_fd == -1)
                 {
                     perror("Error opening threads directory");
@@ -137,20 +169,25 @@ listRunningThreads() {
                 DIR *threads_dir = fdopendir(threads_fd);
                 struct dirent *threads_entry;
 
+                // Iterate through the directories inside task
                 while ((threads_entry = readdir(threads_dir)) != NULL)
                 {
+                    // Filter out directories that starts with '.'
                     if (threads_entry->d_type == DT_DIR && strcmp(threads_entry->d_name, ".") != 0 && strcmp(threads_entry->d_name, "..") != 0)
                     {
+                        // Print the thread number and process ID
                         printf("\033[1;36mThread: %s\033[0m in Process ID: %d\n", threads_entry->d_name, pid);
                     }
                 }
 
+                // Close directories
                 closedir(threads_dir);
                 close(threads_fd);
             }
         }
     }
 
+    // Close directories that are higher in hierarchy
     closedir(dirp);
     close(proc_fd);
 }
@@ -161,30 +198,38 @@ listRunningThreads() {
 void
 listLoadedModules() {
 
+    // Print message
     printf("\033[1;31m\nHERE ARE ALL THE LOADED MODULES:\n\033[0m");
 
+    // Open file for reading
     FILE *file = fopen("/proc/modules", "r");
+
+    // Error checking
     if (file == NULL)
     {
         perror("Issues opening /proc/modules file using fopen");
         return;
     }
 
-    char moduleInfo[256];
+    char module[256];
 
+    // Display output message
     printf("\033[1;36m%-20s %-10s %-10s\n\033[0m", "Module", "Size", "Used by");
 
-    while (fgets(moduleInfo, sizeof(moduleInfo), file) != NULL)
+    // Iterate through the module file
+    while (fgets(module, sizeof(module), file) != NULL)
     {
+        // Variables to hold data for each entry
         char moduleName[50];
         unsigned long moduleSize;
         int moduleUsage;
         char moduleDetails[128];
 
-        sscanf(moduleInfo, "%49s %lu %d %127s", moduleName, &moduleSize, &moduleUsage, moduleDetails);
+        sscanf(module, "%49s %lu %d %127s", moduleName, &moduleSize, &moduleUsage, moduleDetails);
         printf("%-20s %-10lu %-10d %s\n", moduleName, moduleSize, moduleUsage, moduleDetails);
     }
 
+    // Close the file
     fclose(file);
 }
 
@@ -194,9 +239,13 @@ listLoadedModules() {
 void
 listExecutablePages() {
 
+    // Display message
     printf("\033[1;31m\n\nHERE ARE ALL THE EXECUTABLE PAGES WITHIN THE PROCESSES:\n\033[0m");
 
+    // Open directory
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
+
+    // Check for errors
     if (proc_fd == -1)
     {
         perror("Error opening directory /proc");
@@ -206,39 +255,53 @@ listExecutablePages() {
     DIR *dirp = fdopendir(proc_fd);
     struct dirent *dirp_entry;
 
+    // Iterate through the directory
     while ((dirp_entry = readdir(dirp)) != NULL)
     {
+        // Check if there are directories in this directory
         if (dirp_entry->d_type == DT_DIR)
         {
+            // Convert directory name to int because it is a PID
             pid_t pid = atoi(dirp_entry->d_name);
+
+            // Iterate through each PID directory
             if (pid > 0)
             {
                 char executable[256];
+
+                // Copy the data from the path
                 snprintf(executable, sizeof(executable), "/proc/%d/maps", pid);
 
+                // Open file
                 FILE *file = fopen(executable, "r");
+
+                // Check for file opening errors
                 if (file == NULL)
                 {
                     perror("Issues opening executable files using fopen");
                     continue;
                 }
 
-                char executablePages[1024];
+                char executablePages[MEMORY_READ_LIMIT];
                 printf("\033[1;36m\nExecutable pages for Process ID: %d\n\033[0m", pid);
 
+                // Read the file and display the content
                 while (fgets(executablePages, sizeof(executablePages), file) != NULL)
                 {
+                    // If this is an executable process, display it
                     if (strstr(executablePages, "x") != NULL)
                     {
                         printf("%s", executablePages);
                     }
                 }
 
+                // Close the file
                 fclose(file);
             }
         }
     }
 
+    // Close directories
     closedir(dirp);
     close(proc_fd);
 }
@@ -248,9 +311,13 @@ listExecutablePages() {
 // ---------------------------------------------------------------------------------------
 void displayTheMemory()
 {
+    // Display message
     printf("\033[1;31m\nMEMORY RANGES FOR EACH PROCESS:\n\033[0m");
 
+    // Open the /proc directory
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
+
+    // Check for issues when opening /proc directory
     if (proc_fd == -1)
     {
         perror("Error opening directory /proc");
@@ -258,6 +325,8 @@ void displayTheMemory()
     }
 
     DIR *proc_dir = fdopendir(proc_fd);
+
+    // Check for issues when opening /proc directory
     if (proc_dir == NULL)
     {
         perror("Error opening /proc directory with fdopendir");
@@ -267,39 +336,55 @@ void displayTheMemory()
 
     struct dirent *dirp_entry;
 
+    // Iterate through the directory
     while ((dirp_entry = readdir(proc_dir)) != NULL)
     {
+        // Iterate through the PID directories
         if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0)
         {
+            // Convert PIDs to int
             pid_t pid = atoi(dirp_entry->d_name);
             char maps_path[256];
+
+            // Copy content of maps file to maps_path
             snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+
+            // Open the maps_file
             FILE *maps_file = fopen(maps_path, "r");
 
+            // Check for issues when opening
             if (maps_file == NULL)
             {
                 perror("Error opening maps file");
                 continue;
             }
 
-            char line[1024];
+            char line[MEMORY_READ_LIMIT];
+
+            // Output message
             printf("\033[1;33mProcess %d:\n\033[0m", pid);
 
+            // Iterate through the file and display the memory content
             while (fgets(line, sizeof(line), maps_file))
             {
                 char *path = strchr(line, '/');
+
+                // Display the path
                 if (path != NULL) {
                     printf("%.*s %s", (int)(path - line), line, path);
                 } else {
                     printf("%s", line);
                 }
             }
+
             printf("\n");
 
+            // Close the file
             fclose(maps_file);
         }
     }
 
+    // Close the directories
     closedir(proc_dir);
     close(proc_fd);
 }
