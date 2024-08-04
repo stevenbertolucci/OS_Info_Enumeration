@@ -9,3 +9,12 @@ This is a C program written by me that does the following:
 5. Gives us a capability to read the memory.
 
 This program is only executable in Terminal. 
+
+### How to Build and Run this Program?
+There are two options:
+1. Click on `os_info.exe` file and watch it run.
+
+   OR
+
+2. Open Terminal, go to the directory that contains the .c file,
+   and type in `bash build.sh`
