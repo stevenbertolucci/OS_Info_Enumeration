@@ -141,6 +141,7 @@ void listRunningProcesses()
 void
 listRunningThreads() {
 
+    // Display message
     printf("\033[1;31m\nHERE ARE ALL THE RUNNING THREADS WITHIN PROCESS BOUNDARY:\n\033[0m");
 
     // Open the directory
