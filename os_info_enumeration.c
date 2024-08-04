@@ -341,8 +341,9 @@ void displayTheMemory()
             {
                 char *path = strchr(line, '/');
 
-                // Display the path
-                if (path != NULL) {
+                // Display the information
+                if (path != NULL)
+                {
                     printf("%.*s %s", (int)(path - line), line, path);
                 } else {
                     printf("%s", line);
