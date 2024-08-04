@@ -12,21 +12,44 @@
 // 	2. List all the running threads within process boundary.
 // 	3. Enumerate all the loaded modules within the processes.
 // 	4. Is able to show all the executable pages within the processes.
-// 	5. Gives us a capability to read the memory. 
-//
+// 	5. Gives us a capability to read the memory.
 // ----------------------------------------------------------------------------
 
-// ----------------------------------------------------------------------------
-//    Citations:
-//    I researched on how to navigate through directories in a Linux system
-//    and I found a couple man pages that uses dirent.h. Dirent.h describes an
-//    entry in a directory such as d_name.
-//
-//    Source: https://man7.org/linux/man-pages/man0/dirent.h.0p.html
-//  https://www.gnu.org/software/libc/manual/html_node/Directory-Entries.html
-//
-//    I used this approach for all 5 tasks below.
-// ----------------------------------------------------------------------------
+/*
+   CITATIONS:
+
+    I researched on how to navigate through directories in a Linux system
+    and I found a couple man pages that uses dirent.h. Dirent.h describes an
+    entry in a directory such as d_name.
+
+    Source: https://man7.org/linux/man-pages/man0/dirent.h.0p.html
+  https://www.gnu.org/software/libc/manual/html_node/Directory-Entries.html
+
+    I used this approach for all 5 tasks.
+
+    For Task 1 and 2, I researched on how to display all the processes and I found
+    information on The Linux Kernel Documentation under
+    section '3.6 /proc/<pid>/comm & /proc/<pid>/task/<tid>/comm'. The source
+    to this file is:
+
+ https://docs.kernel.org/filesystems/proc.html#proc-pid-comm-proc-pid-task-tid-comm
+
+    For Task 3, this documentation displayed the overview of the directories
+    inside the /proc directory. The source to the documentation is:
+
+        https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/proc.html
+
+    This article gave me the location of the loaded modules: /proc/modules
+
+    For Task 4 and 5, I researched on how to retrieve the executable processes
+    and this article provided detailed information regarding the maps file.
+    The source to this article is:
+
+             https://www.baeldung.com/linux/proc-id-maps
+
+    According to the article above, the maps file has information regarding
+    the virtual memory of that particular process.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,13 +75,6 @@ listRunningProcesses() {
 
     // Open the /proc directory
     DIR *dirp = opendir("/proc");
-
-//    // Check for error opening directory
-//    if (dirp == NULL)
-//    {
-//        perror("Error opening /proc directory");
-//        return;
-//    }
 
     struct dirent *dirp_entry;
 
@@ -95,12 +111,6 @@ listRunningProcesses() {
                 // Open the comm file for reading
                 FILE *comm_file = fopen(comm_path, "r");
 
-//                // Check for errors
-//                if (comm_file == NULL)
-//                {
-//                    continue;
-//                }
-
                 // Get the running process from the file and display it
                 char comm[256];
                 if (fgets(comm, sizeof(comm), comm_file) != NULL)
@@ -130,13 +140,6 @@ listRunningThreads() {
     // Open the directory
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
-//    // Check for errors
-//    if (proc_fd == -1)
-//    {
-//        perror("Error opening directory: /proc");
-//        return;
-//    }
-
     DIR *dirp = fdopendir(proc_fd);
     struct dirent *dirp_entry;
 
@@ -157,13 +160,6 @@ listRunningThreads() {
 
                 // Open the directory
                 int threads_fd = open(threads, O_RDONLY | O_DIRECTORY);
-
-//                // Error checking when opening directories
-//                if (threads_fd == -1)
-//                {
-//                    perror("Error opening threads directory");
-//                    continue;
-//                }
 
                 DIR *threads_dir = fdopendir(threads_fd);
                 struct dirent *threads_entry;
@@ -202,13 +198,6 @@ listLoadedModules() {
 
     // Open file for reading
     FILE *file = fopen("/proc/modules", "r");
-
-//    // Error checking
-//    if (file == NULL)
-//    {
-//        perror("Issues opening /proc/modules file using fopen");
-//        return;
-//    }
 
     char module[256];
 
