@@ -246,18 +246,20 @@ listExecutablePages() {
 // ---------------------------------------------------------------------------------------
 // 		            STEP 5: Gives us a capability to read the memory.
 // ---------------------------------------------------------------------------------------
-void displayTheMemory() {
-
+void displayTheMemory()
+{
     printf("\033[1;31m\nMEMORY RANGES FOR EACH PROCESS:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
-    if (proc_fd == -1) {
+    if (proc_fd == -1)
+    {
         perror("Error opening directory /proc");
         return;
     }
 
     DIR *proc_dir = fdopendir(proc_fd);
-    if (proc_dir == NULL) {
+    if (proc_dir == NULL)
+    {
         perror("Error opening /proc directory with fdopendir");
         close(proc_fd);
         return;
@@ -265,14 +267,17 @@ void displayTheMemory() {
 
     struct dirent *dirp_entry;
 
-    while ((dirp_entry = readdir(proc_dir)) != NULL) {
-        if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0) {
+    while ((dirp_entry = readdir(proc_dir)) != NULL)
+    {
+        if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0)
+        {
             pid_t pid = atoi(dirp_entry->d_name);
             char maps_path[256];
             snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
             FILE *maps_file = fopen(maps_path, "r");
 
-            if (maps_file == NULL) {
+            if (maps_file == NULL)
+            {
                 perror("Error opening maps file");
                 continue;
             }
@@ -280,7 +285,8 @@ void displayTheMemory() {
             char line[1024];
             printf("\033[1;33mProcess %d:\n\033[0m", pid);
 
-            while (fgets(line, sizeof(line), maps_file)) {
+            while (fgets(line, sizeof(line), maps_file))
+            {
                 char *path = strchr(line, '/');
                 if (path != NULL) {
                     printf("%.*s %s", (int)(path - line), line, path);
