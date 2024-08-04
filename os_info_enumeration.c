@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // 	Author: Steven Bertolucci
 // 	Course: CS 373 - Defense Against the Dark Arts
 // 	Institution: Oregon State University
@@ -11,17 +11,16 @@
 // 	1. Enumerate all the running processes.
 // 	2. List all the running threads within process boundary.
 // 	3. Enumerate all the loaded modules within the processes.
-// 	4. Is able to show all the executable pages within
-// 	    the processes.
+// 	4. Is able to show all the executable pages within the processes.
 // 	5. Gives us a capability to read the memory. 
 //
-// ----------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 //    Citations:
 //    I researched on how to navigate through directories in a Linux system
-//    and I found a couple man pages that uses dirent.h. Dirent.h describes an entry
-//    in a directory such as d_name.
+//    and I found a couple man pages that uses dirent.h. Dirent.h describes an
+//    entry in a directory such as d_name.
 //
 //    Source: https://man7.org/linux/man-pages/man0/dirent.h.0p.html
 //  https://www.gnu.org/software/libc/manual/html_node/Directory-Entries.html
