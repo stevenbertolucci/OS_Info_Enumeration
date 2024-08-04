@@ -223,21 +223,14 @@ listExecutablePages() {
                     continue;
                 }
 
-                char executablePages[256];
+                char executablePages[1024];
                 printf("\033[1;36m\nExecutable pages for Process ID: %d\n\033[0m", pid);
 
                 while (fgets(executablePages, sizeof(executablePages), file) != NULL)
                 {
                     if (strstr(executablePages, "x") != NULL)
                     {
-                        char *executablePagesPath = strchr(executablePages, '/');
-
-                        if (executablePagesPath != NULL)
-                        {
-                            printf("%s", executablePagesPath);
-                        }
-
-                        //printf("%s", executablePages);
+                        printf("%s", executablePages);
                     }
                 }
 
@@ -253,21 +246,18 @@ listExecutablePages() {
 // ---------------------------------------------------------------------------------------
 // 		            STEP 5: Gives us a capability to read the memory.
 // ---------------------------------------------------------------------------------------
-void
-displayTheMemory() {
+void displayTheMemory() {
 
     printf("\033[1;31m\nMEMORY RANGES FOR EACH PROCESS:\n\033[0m");
 
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
-    if (proc_fd == -1)
-    {
+    if (proc_fd == -1) {
         perror("Error opening directory /proc");
         return;
     }
 
     DIR *proc_dir = fdopendir(proc_fd);
-    if (proc_dir == NULL)
-    {
+    if (proc_dir == NULL) {
         perror("Error opening /proc directory with fdopendir");
         close(proc_fd);
         return;
@@ -275,29 +265,27 @@ displayTheMemory() {
 
     struct dirent *dirp_entry;
 
-    while ((dirp_entry = readdir(proc_dir)) != NULL)
-    {
-        if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0)
-        {
+    while ((dirp_entry = readdir(proc_dir)) != NULL) {
+        if (dirp_entry->d_type == DT_DIR && atoi(dirp_entry->d_name) > 0) {
             pid_t pid = atoi(dirp_entry->d_name);
             char maps_path[256];
             snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
             FILE *maps_file = fopen(maps_path, "r");
 
-            if (maps_file == NULL)
-            {
+            if (maps_file == NULL) {
                 perror("Error opening maps file");
                 continue;
             }
 
-            char line[256];
-            printf("Process %d:\n", pid);
-            while (fgets(line, sizeof(line), maps_file))
-            {
-                unsigned long start, end;
-                if (sscanf(line, "%lx-%lx", &start, &end) == 2)
-                {
-                    printf("0x%lx-0x%lx\n", start, end);
+            char line[1024];
+            printf("\033[1;33mProcess %d:\n\033[0m", pid);
+
+            while (fgets(line, sizeof(line), maps_file)) {
+                char *path = strchr(line, '/');
+                if (path != NULL) {
+                    printf("%.*s %s", (int)(path - line), line, path);
+                } else {
+                    printf("%s", line);
                 }
             }
             printf("\n");
@@ -310,31 +298,6 @@ displayTheMemory() {
     close(proc_fd);
 }
 
-// ---------------------------------------------------------------------------------------
-//                  Checking to see if user has sudo privileges
-// ---------------------------------------------------------------------------------------
-void
-check_sudo(int argc, char *argv[])
-{
-    if (geteuid() != 0)
-    {
-        // Not running as root, re-execute with sudo
-        printf("This program needs to run with sudo. Please enter your password.\n");
-        char *new_argv[argc + 2];
-        new_argv[0] = "sudo";
-
-        for (int i = 0; i < argc; i++)
-        {
-            new_argv[i + 1] = argv[i];
-        }
-
-        new_argv[argc + 1] = NULL;
-        execvp("sudo", new_argv);
-        perror("execvp");
-        exit(EXIT_FAILURE);
-    }
-}
-
 // ----------------------------------------------------------------
 //                          main.c
 // ----------------------------------------------------------------
@@ -342,7 +305,7 @@ int
 main(int argc, char *argv[])
 {
     // Step 5 requires sudo privileges
-    check_sudo(argc, argv);
+    //check_sudo(argc, argv);
 
     int userInput;
     char input[10];
