@@ -53,12 +53,12 @@ listRunningProcesses() {
     // Open the /proc directory
     DIR *dirp = opendir("/proc");
 
-    // Check for error opening directory
-    if (dirp == NULL)
-    {
-        perror("Error opening /proc directory");
-        return;
-    }
+//    // Check for error opening directory
+//    if (dirp == NULL)
+//    {
+//        perror("Error opening /proc directory");
+//        return;
+//    }
 
     struct dirent *dirp_entry;
 
@@ -95,11 +95,11 @@ listRunningProcesses() {
                 // Open the comm file for reading
                 FILE *comm_file = fopen(comm_path, "r");
 
-                // Check for errors
-                if (comm_file == NULL)
-                {
-                    continue;
-                }
+//                // Check for errors
+//                if (comm_file == NULL)
+//                {
+//                    continue;
+//                }
 
                 // Get the running process from the file and display it
                 char comm[256];
@@ -130,12 +130,12 @@ listRunningThreads() {
     // Open the directory
     int proc_fd = open("/proc", O_RDONLY | O_DIRECTORY);
 
-    // Check for errors
-    if (proc_fd == -1)
-    {
-        perror("Error opening directory: /proc");
-        return;
-    }
+//    // Check for errors
+//    if (proc_fd == -1)
+//    {
+//        perror("Error opening directory: /proc");
+//        return;
+//    }
 
     DIR *dirp = fdopendir(proc_fd);
     struct dirent *dirp_entry;
@@ -158,12 +158,12 @@ listRunningThreads() {
                 // Open the directory
                 int threads_fd = open(threads, O_RDONLY | O_DIRECTORY);
 
-                // Error checking when opening directories
-                if (threads_fd == -1)
-                {
-                    perror("Error opening threads directory");
-                    continue;
-                }
+//                // Error checking when opening directories
+//                if (threads_fd == -1)
+//                {
+//                    perror("Error opening threads directory");
+//                    continue;
+//                }
 
                 DIR *threads_dir = fdopendir(threads_fd);
                 struct dirent *threads_entry;
@@ -203,12 +203,12 @@ listLoadedModules() {
     // Open file for reading
     FILE *file = fopen("/proc/modules", "r");
 
-    // Error checking
-    if (file == NULL)
-    {
-        perror("Issues opening /proc/modules file using fopen");
-        return;
-    }
+//    // Error checking
+//    if (file == NULL)
+//    {
+//        perror("Issues opening /proc/modules file using fopen");
+//        return;
+//    }
 
     char module[256];
 
