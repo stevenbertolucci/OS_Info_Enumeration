@@ -386,6 +386,7 @@ main(int argc, char *argv[])
         fflush(stdout);
         scanf("%s", input);
 
+        // Check for user input to quit
         if (strcmp(input, "q") == 0 || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
             break;
         }
