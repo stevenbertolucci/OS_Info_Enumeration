@@ -90,26 +90,12 @@ void listRunningProcesses()
         // Check if the entry is a directory and the name is all digits (indicating a process ID)
         if (dirp_entry->d_type == DT_DIR)
         {
-            // Set the flag to true
-            int is_pid = 1;
+            // Directory name is a string. Need to change it to int so that I can access it and display it
+            pid_t pid = atoi(dirp_entry->d_name);
 
-            // Check to see if the directory is a PID process
-            for (char *p = dirp_entry->d_name; *p != '\0'; p++)
+            if (pid > 0)
             {
-                if (!isdigit(*p))
-                {
-                    is_pid = 0;
-                    break;
-                }
-            }
-
-            // If it is a PID process, save the PID and then display the running process
-            if (is_pid)
-            {
-                // Directory name is a string. Need to change it to int so that I can access it and display it
-                pid_t pid = atoi(dirp_entry->d_name);
-
-                // Comm file will contain the running process
+                // Comm file path will contain the running process
                 char comm_path[MEMORY_READ_LIMIT];
                 snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
 
@@ -120,6 +106,7 @@ void listRunningProcesses()
                 char comm[MEMORY_READ_LIMIT];
                 if (fgets(comm, sizeof(comm), comm_file) != NULL)
                 {
+                    // Gets rid of the newline character
                     comm[strcspn(comm, "\n")] = '\0';
                     printf("Process ID: %d, Command: %s\n", pid, comm);
                 }
@@ -220,6 +207,7 @@ listLoadedModules() {
         int moduleUsage;
         char moduleDetails[128];
 
+        // Formatted the output
         sscanf(module, "%49s %lu %d %127s", moduleName, &moduleSize, &moduleUsage, moduleDetails);
         printf("%-20s %-10lu %-10d %s\n", moduleName, moduleSize, moduleUsage, moduleDetails);
     }
